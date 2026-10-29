@@ -29,10 +29,16 @@ export class AiService {
           ],
         }),
       });
-    } catch {
-      throw new BadGatewayException('AI 서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.');
+    } catch (e: any) {
+      console.error('OpenAI 연결 실패', e?.cause || e);
+      throw new BadGatewayException(`AI 서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요. (${e?.cause?.code || e?.message})`);
     }
-    if (!res.ok) throw new BadGatewayException('AI가 지금 답하지 못했어요. 잠시 뒤 다시 시도해 주세요.');
+    if (!res.ok) {
+      const body: any = await res.json().catch(() => null);
+      const reason = body?.error?.code || body?.error?.type || 'unknown';
+      console.error('OpenAI 오류', res.status, JSON.stringify(body));
+      throw new BadGatewayException(`AI가 지금 답하지 못했어요. 잠시 뒤 다시 시도해 주세요. (OpenAI ${res.status}: ${reason})`);
+    }
     const data: any = await res.json();
     try {
       const parsed = JSON.parse(data.choices[0].message.content);
